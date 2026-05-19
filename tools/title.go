@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"titles-mcp/config"
 	"titles-mcp/database"
 	"titles-mcp/database/models"
@@ -96,10 +97,12 @@ type GetTMDBMetadataInput struct {
 	ReleaseYear *string `json:"release_year,omitempty" jsonschema:"Optional release year to narrow search"`
 }
 
-type TMDBMovieMetadata struct {
+type TMDBMetadata struct {
 	ID           int      `json:"id"`
-	Title        string   `json:"title"`
-	ReleaseDate  string   `json:"release_date"`
+	Title        string   `json:"title"`        // Movie
+	Name         string   `json:"name"`         // TV
+	ReleaseDate  string   `json:"release_date"` // Movie
+	FirstAirDate string   `json:"first_air_date"` // TV
 	Overview     string   `json:"overview"`
 	PosterPath   string   `json:"poster_path"`
 	BackdropPath string   `json:"backdrop_path"`
@@ -108,14 +111,29 @@ type TMDBMovieMetadata struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"genres"`
-	Runtime int    `json:"runtime"`
-	Tagline string `json:"tagline"`
+	Runtime        int   `json:"runtime"`          // Movie
+	EpisodeRunTime []int `json:"episode_run_time"` // TV
+	Tagline        string `json:"tagline"`
+}
+
+func (m *TMDBMetadata) GetDisplayName() string {
+	if m.Title != "" {
+		return m.Title
+	}
+	return m.Name
+}
+
+func (m *TMDBMetadata) GetDisplayDate() string {
+	if m.ReleaseDate != "" {
+		return m.ReleaseDate
+	}
+	return m.FirstAirDate
 }
 
 type GetTMDBMetadataOutput struct {
-	Status   string             `json:"status"`
-	Message  string             `json:"message,omitempty"`
-	Metadata *TMDBMovieMetadata `json:"metadata,omitempty"`
+	Status   string        `json:"status"`
+	Message  string        `json:"message,omitempty"`
+	Metadata *TMDBMetadata `json:"metadata,omitempty"`
 }
 
 func (t *titleTool) GetTMDBMetadata(ctx context.Context, req *mcp.CallToolRequest, input GetTMDBMetadataInput) (
@@ -131,52 +149,109 @@ func (t *titleTool) GetTMDBMetadata(ctx context.Context, req *mcp.CallToolReques
 		}, nil
 	}
 
-	tmdbID, err := t.searchTMDBMovie(apiKey, input.MovieName, input.ReleaseYear)
+	tmdbID, mediaType, score, err := t.searchTMDB(apiKey, input.MovieName, input.ReleaseYear)
 	if err != nil {
 		return nil, GetTMDBMetadataOutput{Status: "error", Message: err.Error()}, nil
 	}
 
-	metadata, err := t.fetchTMDBMovieDetails(apiKey, tmdbID)
+	metadata, err := t.fetchTMDBDetails(apiKey, tmdbID, mediaType)
 	if err != nil {
 		return nil, GetTMDBMetadataOutput{Status: "error", Message: err.Error()}, nil
 	}
 
 	return nil, GetTMDBMetadataOutput{
 		Status:   "success",
-		Message:  fmt.Sprintf("Metadata retrieved successfully for %s", metadata.Title),
+		Message:  fmt.Sprintf("Metadata retrieved successfully for %s (Score: %d)", metadata.GetDisplayName(), score),
 		Metadata: metadata,
 	}, nil
 }
 
-func (t *titleTool) searchTMDBMovie(apiKey, movieName string, releaseYear *string) (int, error) {
-	searchURL := fmt.Sprintf("https://api.themoviedb.org/3/search/movie?api_key=%s&query=%s", apiKey, url.QueryEscape(movieName))
-	if releaseYear != nil && *releaseYear != "" {
-		searchURL += fmt.Sprintf("&primary_release_year=%s", *releaseYear)
-	}
+func (t *titleTool) searchTMDB(apiKey, query string, releaseYear *string) (int, string, int, error) {
+	searchURL := fmt.Sprintf("https://api.themoviedb.org/3/search/multi?api_key=%s&query=%s", apiKey, url.QueryEscape(query))
 
 	var searchResponse struct {
 		Results []struct {
-			ID int `json:"id"`
+			ID           int     `json:"id"`
+			MediaType    string  `json:"media_type"`
+			Title        string  `json:"title"`
+			Name         string  `json:"name"`
+			ReleaseDate  string  `json:"release_date"`
+			FirstAirDate string  `json:"first_air_date"`
+			Popularity   float64 `json:"popularity"`
 		} `json:"results"`
 	}
 
 	if err := t.getAndDecodeJSON(searchURL, &searchResponse); err != nil {
-		return 0, fmt.Errorf("failed to search movie: %w", err)
+		return 0, "", 0, fmt.Errorf("failed to search: %w", err)
 	}
 
 	if len(searchResponse.Results) == 0 {
-		return 0, fmt.Errorf("no movies found")
+		return 0, "", 0, fmt.Errorf("no results found")
 	}
 
-	return searchResponse.Results[0].ID, nil
+	var bestID int
+	var bestType string
+	maxScore := -1
+
+	for _, res := range searchResponse.Results {
+		if res.MediaType != "movie" && res.MediaType != "tv" {
+			continue
+		}
+
+		currentTitle := res.Title
+		if res.MediaType == "tv" {
+			currentTitle = res.Name
+		}
+
+		currentDate := res.ReleaseDate
+		if res.MediaType == "tv" {
+			currentDate = res.FirstAirDate
+		}
+
+		score := 0
+		if strings.EqualFold(currentTitle, query) {
+			score += 1000
+		} else if strings.Contains(strings.ToLower(currentTitle), strings.ToLower(query)) {
+			score += 100
+		}
+
+		if releaseYear != nil && *releaseYear != "" && strings.HasPrefix(currentDate, *releaseYear) {
+			score += 500
+		}
+
+		// Add a bit of popularity to break ties, but cap its influence
+		popScore := int(res.Popularity)
+		if popScore > 100 {
+			popScore = 100
+		}
+		score += popScore
+
+		if score > maxScore {
+			maxScore = score
+			bestID = res.ID
+			bestType = res.MediaType
+		}
+	}
+
+	if maxScore == -1 {
+		// Fallback to first movie or tv result
+		for _, res := range searchResponse.Results {
+			if res.MediaType == "movie" || res.MediaType == "tv" {
+				return res.ID, res.MediaType, 0, nil
+			}
+		}
+		return 0, "", 0, fmt.Errorf("no movie or tv show found")
+	}
+
+	return bestID, bestType, maxScore, nil
 }
 
-func (t *titleTool) fetchTMDBMovieDetails(apiKey string, tmdbID int) (*TMDBMovieMetadata, error) {
-	detailsURL := fmt.Sprintf("https://api.themoviedb.org/3/movie/%d?api_key=%s", tmdbID, apiKey)
-	var metadata TMDBMovieMetadata
+func (t *titleTool) fetchTMDBDetails(apiKey string, tmdbID int, mediaType string) (*TMDBMetadata, error) {
+	detailsURL := fmt.Sprintf("https://api.themoviedb.org/3/%s/%d?api_key=%s", mediaType, tmdbID, apiKey)
+	var metadata TMDBMetadata
 
 	if err := t.getAndDecodeJSON(detailsURL, &metadata); err != nil {
-		return nil, fmt.Errorf("failed to get movie details: %w", err)
+		return nil, fmt.Errorf("failed to get details: %w", err)
 	}
 
 	return &metadata, nil
