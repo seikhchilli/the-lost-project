@@ -143,11 +143,13 @@ main {
 
 .search-box {
     display: flex;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 30px;
     overflow: hidden;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
     flex: 1;
     max-width: 400px;
 }
@@ -215,17 +217,47 @@ main {
 }
 
 .card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 20px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: var(--glass-shadow);
-    transition: transform 0.3s ease, border-color 0.3s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.37),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 0 20px rgba(255, 255, 255, 0.05);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.4s ease, box-shadow 0.4s ease;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
+    z-index: 1;
+}
+
+.card::before, .card::after {
+    content: '';
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    filter: blur(40px);
+    z-index: -1;
+    opacity: 0.5;
+    transition: all 0.5s ease;
+}
+
+.card::before {
+    background: var(--accent-primary);
+    top: -50px;
+    left: -50px;
+    animation: liquidFloat 8s infinite alternate ease-in-out;
+}
+
+.card::after {
+    background: var(--accent-secondary);
+    bottom: -50px;
+    right: -50px;
+    animation: liquidFloat 10s infinite alternate-reverse ease-in-out;
 }
 
 .card-image {
@@ -243,25 +275,25 @@ main {
     flex: 1;
 }
 
-.card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
 .card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-10px) scale(1.02);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 15px 45px 0 rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 0 30px rgba(255, 255, 255, 0.1);
 }
 
-.card:hover::before {
-    opacity: 1;
+.card:hover::before, .card:hover::after {
+    opacity: 0.8;
+    filter: blur(30px);
+}
+
+@keyframes liquidFloat {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -20px) scale(1.2); }
+    66% { transform: translate(-20px, 20px) scale(0.8); }
+    100% { transform: translate(0, 0) scale(1); }
 }
 
 .card-title {
@@ -348,15 +380,48 @@ main {
 }
 
 .modal {
-    background: #0a0a0a;
-    border: 1px solid var(--glass-border);
-    border-radius: 24px;
+    background: rgba(10, 10, 10, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
     width: 90%;
     max-width: 500px;
     padding: 2rem;
     transform: translateY(20px) scale(0.95);
     transition: transform 0.3s ease;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 
+        0 20px 40px rgba(0,0,0,0.5),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 0 20px rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.modal::before, .modal::after {
+    content: '';
+    position: absolute;
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    filter: blur(70px);
+    z-index: -1;
+    opacity: 0.3;
+}
+
+.modal::before {
+    background: var(--accent-primary);
+    top: -80px;
+    left: -80px;
+    animation: liquidFloat 10s infinite alternate ease-in-out;
+}
+
+.modal::after {
+    background: var(--accent-secondary);
+    bottom: -80px;
+    right: -80px;
+    animation: liquidFloat 12s infinite alternate-reverse ease-in-out;
 }
 
 .modal-overlay.active .modal {
@@ -463,17 +528,49 @@ main {
 }
 
 .game-card {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
     padding: 2.5rem;
     width: 100%;
     max-width: 700px;
     height: 520px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+    box-shadow: 
+        0 20px 50px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 0 30px rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.game-card::before, .game-card::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.4;
+}
+
+.game-card::before {
+    background: var(--accent-primary);
+    top: -100px;
+    left: -100px;
+    animation: liquidFloat 10s infinite alternate ease-in-out;
+}
+
+.game-card::after {
+    background: var(--accent-secondary);
+    bottom: -100px;
+    right: -100px;
+    animation: liquidFloat 12s infinite alternate-reverse ease-in-out;
 }
 
 .game-content {
@@ -675,3 +772,29 @@ main {
     }
 }
 
+.liquid-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.liquid-panel::before {
+    content: '';
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    filter: blur(30px);
+    z-index: -1;
+    opacity: 0.3;
+    background: var(--accent-primary);
+    top: -30px;
+    left: -30px;
+    animation: liquidFloat 8s infinite alternate ease-in-out;
+}
