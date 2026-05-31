@@ -145,6 +145,7 @@ class App {
             manualCheckboxGroup: document.getElementById("manualCheckboxGroup"),
             addManualWatched: document.getElementById("addManualWatched"),
             addManualWished: document.getElementById("addManualWished"),
+            manualInputFields: document.getElementById("manualInputFields"),
             manualResultContainer: document.getElementById("manualResultContainer"),
             manualSearchActions: document.getElementById("manualSearchActions"),
             manualConfirmActions: document.getElementById("manualConfirmActions"),
@@ -281,6 +282,7 @@ class App {
 
     resetManualSearch() {
         const els = this.elements;
+        els.manualInputFields.style.display = "";
         els.manualCheckboxGroup.style.display = "none";
         els.manualResultContainer.style.display = "none";
         els.manualSearchActions.style.display = "flex";
@@ -311,6 +313,7 @@ class App {
                     els.manualResultPoster
                 );
                 
+                els.manualInputFields.style.display = "none";
                 els.manualCheckboxGroup.style.display = "flex";
                 els.manualResultContainer.style.display = "flex";
                 els.manualSearchActions.style.display = "none";
