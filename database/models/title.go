@@ -26,9 +26,10 @@ type Title struct {
 }
 
 type TitleSummary struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	ReleaseYear uint16 `json:"release_year"`
-	Watched     bool   `json:"watched"`
-	Wished      bool   `json:"wished"`
+	ID          uint    `json:"id"`
+	Name        string  `json:"name"`
+	ReleaseYear uint16  `json:"release_year"`
+	Watched     bool    `json:"watched"`
+	Wished      bool    `json:"wished"`
+	PosterPath  *string `json:"poster_path,omitempty"`
 }

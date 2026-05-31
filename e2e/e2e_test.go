@@ -29,7 +29,7 @@ func TestE2E(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "./../titles-mcp.exe")
 	cmd.Env = append(os.Environ(), "USE_SQLITE=true")
 	transport := &mcp.CommandTransport{Command: cmd}
-	
+
 	t.Log("Connecting to server...")
 	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
@@ -61,10 +61,10 @@ func runAddTitles(t *testing.T, ctx context.Context, session *mcp.ClientSession)
 				{
 					"name":         "Anorrrra",
 					"release_year": 2024,
-					"genres":        []string{"Drama", "Comedy", "Romance"},
-					"imdb_rating":   7.1,
-					"imdb_id":       "tt2860845951",
-					"tmdb_id":       "10646613",
+					"genres":       []string{"Drama", "Comedy", "Romance"},
+					"imdb_rating":  7.1,
+					"imdb_id":      "tt2860845951",
+					"tmdb_id":      "10646613",
 				},
 			},
 		},
@@ -86,7 +86,7 @@ func runListAll(t *testing.T, ctx context.Context, session *mcp.ClientSession) [
 	if err != nil {
 		t.Fatalf("ListAllTitles failed: %v", err)
 	}
-	
+
 	// Parse response to get an ID for subsequent tests
 	var output struct {
 		Titles []map[string]any `json:"titles"`

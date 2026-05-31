@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A premium interface to track your watched and wished movies and TV shows.">
+    <title>Titles Tracker | Premium Media Manager</title>
+    <link rel="stylesheet" href="index.css">
+    <!-- Ionicons for beautiful lightweight icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <header>
+        <div class="logo">TitlesTracker</div>
+        <nav>
+            <a class="nav-link active" id="nav-watched">Watched</a>
+            <a class="nav-link" id="nav-wished">Wishlist</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search your titles...">
+            </div>
+            <div style="display:flex; gap:1rem;">
+                <button class="btn btn-secondary" id="btnSearchTMDB">
+                    <ion-icon name="search-outline" style="vertical-align: middle; margin-right:5px;"></ion-icon> Search TMDB
+                </button>
+                <button class="btn" id="btnAddManual">
+                    <ion-icon name="add-outline" style="vertical-align: middle; margin-right:5px;"></ion-icon> Add Manually
+                </button>
+            </div>
+        </div>
+
+        <div class="grid" id="titlesGrid">
+            <!-- Loading state -->
+            <div class="empty-state">
+                <div class="loader"></div>
+                <p>Loading your titles...</p>
+            </div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display: none; justify-content: center; margin-top: 3rem;">
+            <button class="btn btn-secondary" id="btnPrev" style="margin-right: 1rem;">Previous</button>
+            <span id="pageInfo" style="align-self: center; font-weight: 500;"></span>
+            <button class="btn btn-secondary" id="btnNext" style="margin-left: 1rem;">Next</button>
+        </div>
+    </main>
+
+    <!-- Modal for Manual Add -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <h2>Add New Title</h2>
+            <div class="form-group">
+                <label for="titleName">Title Name</label>
+                <input type="text" id="titleName" placeholder="e.g. Inception">
+            </div>
+            <div class="form-group">
+                <label for="titleYear">Release Year</label>
+                <input type="number" id="titleYear" placeholder="e.g. 2010">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCancelAdd">Cancel</button>
+                <button class="btn" id="btnSubmitAdd">Add Title</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for TMDB Search -->
+    <div class="modal-overlay" id="tmdbModal">
+        <div class="modal">
+            <h2>Search TMDB</h2>
+            <div class="form-group">
+                <label for="tmdbQuery">Movie or TV Show Name</label>
+                <input type="text" id="tmdbQuery" placeholder="Enter title to fetch details...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCancelTMDB">Cancel</button>
+                <button class="btn" id="btnSubmitTMDB">Fetch & Add</button>
+            </div>
+            <p id="tmdbStatus" style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem; text-align:center;"></p>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>

@@ -108,7 +108,7 @@ func Test_GetWatchedTitles(t *testing.T) {
 	title3.Watched = false
 	_, _ = repo.AddTitles(ctx, []models.Title{title1, title2, title3})
 
-	watched_titles, err := repo.GetWatchedTitles(ctx)
+	watched_titles, _, err := repo.GetWatchedTitles(ctx, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -140,9 +140,9 @@ func Test_SearchTitles(t *testing.T) {
 	}
 
 	// Test case 1: Search by name
-	summaries, err := repo.SearchTitles(ctx, SearchParams{
+	summaries, _, err := repo.SearchTitles(ctx, SearchParams{
 		TitleNames: &[]string{testdata.TitleTestData.Name},
-	})
+	}, 0, 0)
 	if err != nil {
 		t.Errorf("Search by name failed: %v", err)
 	}
@@ -152,9 +152,9 @@ func Test_SearchTitles(t *testing.T) {
 
 	// Test case 2: Search by watched status
 	watched := true
-	summaries, err = repo.SearchTitles(ctx, SearchParams{
+	summaries, _, err = repo.SearchTitles(ctx, SearchParams{
 		Watched: &watched,
-	})
+	}, 0, 0)
 	if err != nil {
 		t.Errorf("Search by watched failed: %v", err)
 	}
@@ -163,9 +163,9 @@ func Test_SearchTitles(t *testing.T) {
 	}
 
 	// Test case 3: Search by year range
-	summaries, err = repo.SearchTitles(ctx, SearchParams{
+	summaries, _, err = repo.SearchTitles(ctx, SearchParams{
 		ReleaseYearRange: &ReleaseYearRange{From: 1970, To: 1980},
-	})
+	}, 0, 0)
 	if err != nil {
 		t.Errorf("Search by year range failed: %v", err)
 	}

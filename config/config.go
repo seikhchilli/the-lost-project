@@ -1,7 +1,9 @@
 package config
 
 import (
+	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -26,12 +28,26 @@ type Config struct {
 var AppConfig *Config
 
 func LoadConfig() {
-	_ = godotenv.Load()
+	// Try loading from current directory first
+	err := godotenv.Load()
+	if err != nil {
+		// Fallback to executable's directory
+		exe, err := os.Executable()
+		if err == nil {
+			exeDir := filepath.Dir(exe)
+			_ = godotenv.Load(filepath.Join(exeDir, ".env"))
+		}
+	}
+
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		log.Fatal("DB_HOST is missing. Please set the required environment variables or provide a .env file.")
+	}
 
 	AppConfig = &Config{
 		DBConfig: DBConfig{
 			Port:     os.Getenv("DB_PORT"),
-			Host:     os.Getenv("DB_HOST"),
+			Host:     dbHost,
 			Name:     os.Getenv("DB_NAME"),
 			User:     os.Getenv("DB_USER"),
 			Password: os.Getenv("DB_PASSWORD"),

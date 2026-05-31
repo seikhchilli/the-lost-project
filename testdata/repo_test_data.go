@@ -10,7 +10,7 @@ var (
 	tmdbID     = "10646613"
 
 	TitleTestData = models.Title{
-		Name:        "title name",
+		Name:        "first movie",
 		ReleaseYear: 2001,
 		Genres:      []string{"romance", "comedy"},
 		ImdbRating:  &imdbRating,
@@ -24,7 +24,7 @@ var (
 	tmdbID2     = "10646610"
 
 	TitleTestData2 = models.Title{
-		Name:        "title name 2",
+		Name:        "second movie",
 		ReleaseYear: 1971,
 		Genres:      []string{"action", "thriller"},
 		ImdbRating:  &imdbRating2,
@@ -38,7 +38,7 @@ var (
 	tmdbID3     = "10645610"
 
 	TitleTestData3 = models.Title{
-		Name:        "title name 3",
+		Name:        "third movie",
 		ReleaseYear: 1971,
 		Genres:      []string{"action", "thriller"},
 		ImdbRating:  &imdbRating3,

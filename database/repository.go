@@ -10,11 +10,11 @@ import (
 
 type Repository interface {
 	AddTitles(ctx context.Context, titles []models.Title) ([]models.TitleSummary, error)
-	GetAllTitles(ctx context.Context) ([]models.TitleSummary, error)
-	GetWatchedTitles(ctx context.Context) ([]models.TitleSummary, error)
-	GetWishedTitles(ctx context.Context) ([]models.TitleSummary, error)
+	GetAllTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error)
+	GetWatchedTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error)
+	GetWishedTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error)
 	UpdateTitle(ctx context.Context, id uint, updates map[string]interface{}) error
-	SearchTitles(ctx context.Context, searchParams SearchParams) ([]models.TitleSummary, error)
+	SearchTitles(ctx context.Context, searchParams SearchParams, page, pageSize int) ([]models.TitleSummary, int64, error)
 	GetTitlesByIds(ctx context.Context, IDs []uint) ([]models.Title, error)
 }
 
@@ -40,6 +40,15 @@ func NewRepository(db *gorm.DB) Repository {
 	}
 }
 
+func paginate(query *gorm.DB, page, pageSize int, total *int64) *gorm.DB {
+	query.Count(total)
+	if page > 0 && pageSize > 0 {
+		offset := (page - 1) * pageSize
+		return query.Offset(offset).Limit(pageSize)
+	}
+	return query
+}
+
 func (r *repository) AddTitles(ctx context.Context, titles []models.Title) ([]models.TitleSummary, error) {
 	if err := r.db.WithContext(ctx).Create(&titles).Error; err != nil {
 		return nil, err
@@ -52,17 +61,27 @@ func (r *repository) AddTitles(ctx context.Context, titles []models.Title) ([]mo
 			ReleaseYear: title.ReleaseYear,
 			Watched:     title.Watched,
 			Wished:      title.Wished,
+			PosterPath:  title.PosterPath,
 		}
 	}
 	return titlesAdded, nil
 }
 
-func (r *repository) SearchTitles(ctx context.Context, searchParams SearchParams) ([]models.TitleSummary, error) {
+func (r *repository) SearchTitles(ctx context.Context, searchParams SearchParams, page, pageSize int) ([]models.TitleSummary, int64, error) {
 	var summaries []models.TitleSummary
+	var total int64
 	query := r.db.WithContext(ctx).Model(&models.Title{})
 
 	if searchParams.TitleNames != nil && len(*searchParams.TitleNames) > 0 {
-		query = query.Where("name IN ?", *searchParams.TitleNames)
+		likeQuery := r.db
+		for i, name := range *searchParams.TitleNames {
+			if i == 0 {
+				likeQuery = likeQuery.Where("LOWER(name) LIKE LOWER(?)", "%"+name+"%")
+			} else {
+				likeQuery = likeQuery.Or("LOWER(name) LIKE LOWER(?)", "%"+name+"%")
+			}
+		}
+		query = query.Where(likeQuery)
 	}
 
 	if searchParams.ReleaseYearRange != nil {
@@ -82,12 +101,14 @@ func (r *repository) SearchTitles(ctx context.Context, searchParams SearchParams
 		query = query.Where("wished = ?", *searchParams.Wished)
 	}
 
-	err := query.Select("id", "name", "release_year", "watched", "wished").Find(&summaries).Error
+	query = paginate(query, page, pageSize, &total)
+
+	err := query.Select("id", "name", "release_year", "watched", "wished", "poster_path").Find(&summaries).Error
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return summaries, nil
+	return summaries, total, nil
 }
 
 func (r *repository) GetTitlesByIds(ctx context.Context, IDs []uint) ([]models.Title, error) {
@@ -98,22 +119,31 @@ func (r *repository) GetTitlesByIds(ctx context.Context, IDs []uint) ([]models.T
 	return titles, nil
 }
 
-func (r *repository) GetAllTitles(ctx context.Context) ([]models.TitleSummary, error) {
+func (r *repository) GetAllTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error) {
 	var titles []models.TitleSummary
-	err := r.db.WithContext(ctx).Model(&models.Title{}).Select("id", "name", "release_year", "watched", "wished").Find(&titles).Error
-	return titles, err
+	var total int64
+	query := r.db.WithContext(ctx).Model(&models.Title{})
+	query = paginate(query, page, pageSize, &total)
+	err := query.Select("id", "name", "release_year", "watched", "wished", "poster_path").Find(&titles).Error
+	return titles, total, err
 }
 
-func (r *repository) GetWatchedTitles(ctx context.Context) ([]models.TitleSummary, error) {
+func (r *repository) GetWatchedTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error) {
 	var titles []models.TitleSummary
-	err := r.db.WithContext(ctx).Model(&models.Title{}).Where("watched = ?", true).Find(&titles).Error
-	return titles, err
+	var total int64
+	query := r.db.WithContext(ctx).Model(&models.Title{}).Where("watched = ?", true)
+	query = paginate(query, page, pageSize, &total)
+	err := query.Find(&titles).Error
+	return titles, total, err
 }
 
-func (r *repository) GetWishedTitles(ctx context.Context) ([]models.TitleSummary, error) {
+func (r *repository) GetWishedTitles(ctx context.Context, page, pageSize int) ([]models.TitleSummary, int64, error) {
 	var titles []models.TitleSummary
-	err := r.db.WithContext(ctx).Model(&models.Title{}).Where("wished = ?", true).Find(&titles).Error
-	return titles, err
+	var total int64
+	query := r.db.WithContext(ctx).Model(&models.Title{}).Where("wished = ?", true)
+	query = paginate(query, page, pageSize, &total)
+	err := query.Find(&titles).Error
+	return titles, total, err
 }
 
 func (r *repository) UpdateTitle(ctx context.Context, id uint, updates map[string]interface{}) error {
