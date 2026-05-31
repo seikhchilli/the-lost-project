@@ -32,6 +32,7 @@ func (t *titleTool) Register(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{Name: "remove_from_watched", Description: "Remove a title from the watched list by its ID"}, t.RemoveTitleFromWatched)
 	mcp.AddTool(server, &mcp.Tool{Name: "remove_from_wished", Description: "Remove a title from the wished list by its ID"}, t.RemoveTitleFromWished)
 	mcp.AddTool(server, &mcp.Tool{Name: "get_title_details", Description: "Search for movie or TV show details including IMDB ID"}, t.GetTitleDetails)
+	mcp.AddTool(server, &mcp.Tool{Name: "delete_title", Description: "Delete a title completely from the database by its ID"}, t.DeleteTitle)
 }
 
 func (t *titleTool) AddTitles(ctx context.Context, req *mcp.CallToolRequest, input service.AddTitlesInput) (
@@ -121,5 +122,14 @@ func (t *titleTool) GetTitleDetails(ctx context.Context, req *mcp.CallToolReques
 	error,
 ) {
 	output, err := t.titleService.GetTitleDetails(ctx, input)
+	return nil, output, err
+}
+
+func (t *titleTool) DeleteTitle(ctx context.Context, req *mcp.CallToolRequest, input service.DeleteTitleInput) (
+	*mcp.CallToolResult,
+	service.DeleteTitleOutput,
+	error,
+) {
+	output, err := t.titleService.DeleteTitle(ctx, input)
 	return nil, output, err
 }

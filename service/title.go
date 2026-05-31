@@ -16,6 +16,8 @@ type TitleService interface {
 	RemoveTitleFromWatched(ctx context.Context, input RemoveTitleFromWatchedInput) (RemoveTitleFromWatchedOutput, error)
 	RemoveTitleFromWished(ctx context.Context, input RemoveTitleFromWishedInput) (RemoveTitleFromWishedOutput, error)
 	GetTitleDetails(ctx context.Context, input GetTitleDetailsInput) (GetTitleDetailsOutput, error)
+	DeleteTitle(ctx context.Context, input DeleteTitleInput) (DeleteTitleOutput, error)
+	GetNextGameMovie(ctx context.Context) (GetNextGameMovieOutput, error)
 }
 
 type titleService struct {

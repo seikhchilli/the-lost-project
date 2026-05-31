@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"errors"
 	"titles-mcp/database"
+	"titles-mcp/database/sentinel"
 	"titles-mcp/service"
 )
 
@@ -39,6 +41,10 @@ func (h *handler) AddTitles(w http.ResponseWriter, r *http.Request) {
 	}
 	output, err := h.titleService.AddTitles(r.Context(), input)
 	if err != nil {
+		if errors.Is(err, sentinel.ErrTitleAlreadyExists) || err.Error() == "Title already exists in your library" {
+			writeError(w, http.StatusConflict, err)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -136,6 +142,15 @@ func (h *handler) GetTitleDetails(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, output)
 }
 
+func (h *handler) GetNextGameMovie(w http.ResponseWriter, r *http.Request) {
+	output, err := h.titleService.GetNextGameMovie(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, output)
+}
+
 func (h *handler) GetTitlesByIds(w http.ResponseWriter, r *http.Request) {
 	var input service.GetTitlesByIdsInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -206,6 +221,20 @@ func (h *handler) RemoveTitleFromWished(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	output, err := h.titleService.RemoveTitleFromWished(r.Context(), service.RemoveTitleFromWishedInput{TitleId: id})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, output)
+}
+
+func (h *handler) DeleteTitle(w http.ResponseWriter, r *http.Request) {
+	id, err := getID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	output, err := h.titleService.DeleteTitle(r.Context(), service.DeleteTitleInput{TitleId: id})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

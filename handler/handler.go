@@ -27,6 +27,7 @@ func (h *handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/titles/watched", h.ListWatchedTitles)
 	mux.HandleFunc("GET /api/titles/search", h.SearchTitles)
 	mux.HandleFunc("GET /api/titles/details", h.GetTitleDetails)
+	mux.HandleFunc("GET /api/titles/game/next", h.GetNextGameMovie)
 	mux.HandleFunc("POST /api/titles/bulk", h.GetTitlesByIds)
 
 	mux.HandleFunc("PUT /api/titles/{id}/watch", h.MarkTitleAsWatched)
@@ -34,6 +35,8 @@ func (h *handler) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("PUT /api/titles/{id}/wish", h.MarkTitleAsWished)
 	mux.HandleFunc("DELETE /api/titles/{id}/wish", h.RemoveTitleFromWished)
+
+	mux.HandleFunc("DELETE /api/titles/{id}", h.DeleteTitle)
 
 	// Serve static files
 	fs := http.FileServer(http.Dir("./static"))

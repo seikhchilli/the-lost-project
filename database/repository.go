@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"strings"
+	"errors"
 	"titles-mcp/database/models"
 	"titles-mcp/database/sentinel"
 
@@ -16,6 +18,8 @@ type Repository interface {
 	UpdateTitle(ctx context.Context, id uint, updates map[string]interface{}) error
 	SearchTitles(ctx context.Context, searchParams SearchParams, page, pageSize int) ([]models.TitleSummary, int64, error)
 	GetTitlesByIds(ctx context.Context, IDs []uint) ([]models.Title, error)
+	DeleteTitle(ctx context.Context, id uint) error
+	GetExistingTmdbIds(ctx context.Context, tmdbIds []string) ([]string, error)
 }
 
 type repository struct {
@@ -49,8 +53,22 @@ func paginate(query *gorm.DB, page, pageSize int, total *int64) *gorm.DB {
 	return query
 }
 
+func (r *repository) GetExistingTmdbIds(ctx context.Context, tmdbIds []string) ([]string, error) {
+	var existingIds []string
+	err := r.db.WithContext(ctx).
+		Model(&models.Title{}).
+		Where("tmdb_id IN ?", tmdbIds).
+		Pluck("tmdb_id", &existingIds).Error
+	return existingIds, err
+}
+
 func (r *repository) AddTitles(ctx context.Context, titles []models.Title) ([]models.TitleSummary, error) {
 	if err := r.db.WithContext(ctx).Create(&titles).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) || 
+		   strings.Contains(strings.ToLower(err.Error()), "unique constraint") || 
+		   strings.Contains(strings.ToLower(err.Error()), "duplicate key") {
+			return nil, sentinel.ErrTitleAlreadyExists
+		}
 		return nil, err
 	}
 	titlesAdded := make([]models.TitleSummary, len(titles))
@@ -153,6 +171,17 @@ func (r *repository) UpdateTitle(ctx context.Context, id uint, updates map[strin
 		return result.Error
 	}
 
+	if result.RowsAffected == 0 {
+		return sentinel.ErrTitleNotFound
+	}
+	return nil
+}
+
+func (r *repository) DeleteTitle(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Title{})
+	if result.Error != nil {
+		return result.Error
+	}
 	if result.RowsAffected == 0 {
 		return sentinel.ErrTitleNotFound
 	}

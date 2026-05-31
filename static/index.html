@@ -1,93 +1,226 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A premium interface to track your watched and wished movies and TV shows.">
-    <title>Titles Tracker | Premium Media Manager</title>
-    <link rel="stylesheet" href="index.css">
-    <!-- Ionicons for beautiful lightweight icons -->
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-</head>
-<body>
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="A premium interface to track your watched and wished movies and TV shows."
+        />
+        <title>The Lost Project</title>
+        <link rel="stylesheet" href="index.css" />
+        <!-- Ionicons for beautiful lightweight icons -->
+        <script
+            type="module"
+            src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"
+        ></script>
+        <script
+            nomodule
+            src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"
+        ></script>
+    </head>
+    <body>
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
 
-    <header>
-        <div class="logo">TitlesTracker</div>
-        <nav>
-            <a class="nav-link active" id="nav-watched">Watched</a>
-            <a class="nav-link" id="nav-wished">Wishlist</a>
-        </nav>
-    </header>
+        <header>
+            <div class="logo">The Lost Project</div>
+            <nav>
+                <a class="nav-link active" id="nav-watched">Watched</a>
+                <a class="nav-link" id="nav-wished">Wishlist</a>
+                <a class="nav-link" id="nav-game">Game</a>
+            </nav>
+        </header>
 
-    <main>
-        <div class="controls">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Search your titles...">
+        <main>
+            <div class="controls">
+                <div class="search-box">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search your titles..."
+                    />
+                </div>
+                <div style="display: flex; gap: 1rem">
+                    <button class="btn" id="btnAddManual">
+                        <ion-icon
+                            name="add-outline"
+                            style="vertical-align: middle; margin-right: 5px"
+                        ></ion-icon>
+                        Add Title
+                    </button>
+                </div>
             </div>
-            <div style="display:flex; gap:1rem;">
-                <button class="btn btn-secondary" id="btnSearchTMDB">
-                    <ion-icon name="search-outline" style="vertical-align: middle; margin-right:5px;"></ion-icon> Search TMDB
+
+            <div class="grid" id="titlesGrid">
+                <!-- Loading state -->
+                <div class="empty-state">
+                    <div class="loader"></div>
+                    <p>Loading your titles...</p>
+                </div>
+            </div>
+
+            <div
+                class="pagination"
+                id="pagination"
+                style="display: none; justify-content: center; margin-top: 3rem"
+            >
+                <button
+                    class="btn btn-secondary"
+                    id="btnPrev"
+                    style="margin-right: 1rem"
+                >
+                    Previous
                 </button>
-                <button class="btn" id="btnAddManual">
-                    <ion-icon name="add-outline" style="vertical-align: middle; margin-right:5px;"></ion-icon> Add Manually
+                <span
+                    id="pageInfo"
+                    style="align-self: center; font-weight: 500"
+                ></span>
+                <button
+                    class="btn btn-secondary"
+                    id="btnNext"
+                    style="margin-left: 1rem"
+                >
+                    Next
                 </button>
             </div>
-        </div>
+            <!-- Game View Container -->
+            <div id="gameContainer" class="game-container">
+                <div class="game-card" id="gameCard">
+                    <!-- Loading state initially -->
+                    <div class="empty-state" id="gameLoadingState" style="margin: auto;">
+                        <div class="loader"></div>
+                        <p>Finding a great movie...</p>
+                    </div>
+                    
+                    <!-- Movie content -->
+                    <div id="gameContent" class="game-content" style="display: none;">
+                        <div class="game-meta-wrapper">
+                            <img id="gamePoster" src="" alt="Poster" class="game-poster">
+                            <div class="game-info-wrapper">
+                                <h2 id="gameTitle" class="game-title"></h2>
+                                <div class="game-rating-row">
+                                    <span id="gameYear" class="game-year"></span>
+                                    <span id="gameRatingContainer" class="game-rating-badge">
+                                        <ion-icon name="star"></ion-icon> <span id="gameRating"></span>
+                                    </span>
+                                </div>
+                                <div id="gameGenres" class="game-genres"></div>
+                                <p id="gameOverview" class="game-overview"></p>
+                            </div>
+                        </div>
+                        <div class="game-actions-wrapper">
+                            <button class="btn btn-secondary game-btn" id="btnGameSkip">
+                                <ion-icon name="play-skip-forward-outline"></ion-icon> Skip
+                            </button>
+                            <button class="btn btn-secondary game-btn wishlist-btn" id="btnGameWish">
+                                <ion-icon name="bookmark-outline"></ion-icon> Wishlist
+                            </button>
+                            <button class="btn game-btn watch-btn" id="btnGameWatch">
+                                <ion-icon name="eye-outline"></ion-icon> Watched It
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
 
-        <div class="grid" id="titlesGrid">
-            <!-- Loading state -->
-            <div class="empty-state">
-                <div class="loader"></div>
-                <p>Loading your titles...</p>
+        <!-- Modal for Title Details -->
+        <div class="modal-overlay" id="detailsModal">
+            <div class="modal" style="max-width: 600px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+                    <h2 id="detailsTitle" style="margin-bottom: 0; font-size: 1.8rem; background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Title</h2>
+                    <button class="icon-btn" id="btnCloseDetails" style="border:none;">
+                        <ion-icon name="close-outline"></ion-icon>
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                    <img id="detailsPoster" style="width: 150px; border-radius: 12px; box-shadow: var(--glass-shadow); display: none;">
+                    
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                            <span id="detailsYear" style="color: var(--text-muted); font-weight: 500; font-size: 1.1rem;"></span>
+                            <span id="detailsRating" style="background: rgba(251, 191, 36, 0.2); color: var(--accent-wished); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600; display: none;">
+                                <ion-icon name="star" style="vertical-align: text-bottom;"></ion-icon> <span id="detailsRatingValue"></span>
+                            </span>
+                        </div>
+                        
+                        <div id="detailsGenres" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;"></div>
+                        
+                        <p id="detailsOverview" style="font-size: 1rem; line-height: 1.6; color: var(--text-main);"></p>
+                    </div>
+                </div>
+                
+                <div class="modal-actions" id="detailsModalActions" style="margin-top: 2rem; display: flex; gap: 1rem;">
+                </div>
             </div>
         </div>
 
-        <div class="pagination" id="pagination" style="display: none; justify-content: center; margin-top: 3rem;">
-            <button class="btn btn-secondary" id="btnPrev" style="margin-right: 1rem;">Previous</button>
-            <span id="pageInfo" style="align-self: center; font-weight: 500;"></span>
-            <button class="btn btn-secondary" id="btnNext" style="margin-left: 1rem;">Next</button>
-        </div>
-    </main>
+        <!-- Modal for Manual Add -->
+        <div class="modal-overlay" id="addModal">
+            <div class="modal">
+                <h2>Add New Title</h2>
+                <div class="form-group">
+                    <label for="titleName">Title Name</label>
+                    <input
+                        type="text"
+                        id="titleName"
+                        placeholder="e.g. Inception"
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="titleYear">Release Year</label>
+                    <input
+                        type="number"
+                        id="titleYear"
+                        placeholder="e.g. 2010"
+                    />
+                </div>
+            <!-- Result Container -->
+            <div id="manualResultContainer" style="display: none; margin-bottom: 1.5rem; flex-direction: column; gap: 1rem;">
+                <div style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 1rem; background: rgba(0,0,0,0.2);">
+                    <img id="manualResultPoster" style="width: 80px; border-radius: 8px; flex-shrink: 0; display: none;">
+                    <div>
+                        <h3 id="manualResultTitle" style="margin-bottom: 0.25rem;"></h3>
+                        <p id="manualResultYear" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;"></p>
+                        <p id="manualResultOverview" style="font-size: 0.85rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;"></p>
+                    </div>
+                </div>
 
-    <!-- Modal for Manual Add -->
-    <div class="modal-overlay" id="addModal">
-        <div class="modal">
-            <h2>Add New Title</h2>
-            <div class="form-group">
-                <label for="titleName">Title Name</label>
-                <input type="text" id="titleName" placeholder="e.g. Inception">
+                <div class="segmented-control" id="manualCheckboxGroup" style="display:none;">
+                    <label class="segment-label">
+                        <input type="radio" name="statusOption" id="addManualWatched" value="watched">
+                        <span class="segment-btn">
+                            <ion-icon name="eye-outline" style="vertical-align: text-bottom; margin-right: 4px;"></ion-icon>
+                            Watched
+                        </span>
+                    </label>
+                    <label class="segment-label">
+                        <input type="radio" name="statusOption" id="addManualWished" value="wished">
+                        <span class="segment-btn">
+                            <ion-icon name="bookmark-outline" style="vertical-align: text-bottom; margin-right: 4px;"></ion-icon>
+                            Wishlist
+                        </span>
+                    </label>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="titleYear">Release Year</label>
-                <input type="number" id="titleYear" placeholder="e.g. 2010">
-            </div>
-            <div class="modal-actions">
+
+            <div class="modal-actions" id="manualSearchActions">
                 <button class="btn btn-secondary" id="btnCancelAdd">Cancel</button>
-                <button class="btn" id="btnSubmitAdd">Add Title</button>
+                <button class="btn" id="btnSearchManual">Search Details</button>
+            </div>
+            <div class="modal-actions" id="manualConfirmActions" style="display: none;">
+                <button class="btn btn-secondary" id="btnBackManual">Back</button>
+                <button class="btn" id="btnConfirmAddManual">Confirm & Add</button>
+            </div>
+            <p id="manualStatus" style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem; text-align:center;"></p>
             </div>
         </div>
-    </div>
 
-    <!-- Modal for TMDB Search -->
-    <div class="modal-overlay" id="tmdbModal">
-        <div class="modal">
-            <h2>Search TMDB</h2>
-            <div class="form-group">
-                <label for="tmdbQuery">Movie or TV Show Name</label>
-                <input type="text" id="tmdbQuery" placeholder="Enter title to fetch details...">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="btnCancelTMDB">Cancel</button>
-                <button class="btn" id="btnSubmitTMDB">Fetch & Add</button>
-            </div>
-            <p id="tmdbStatus" style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem; text-align:center;"></p>
-        </div>
-    </div>
 
-    <script src="index.js"></script>
-</body>
+
+        <script src="index.js"></script>
+    </body>
 </html>
