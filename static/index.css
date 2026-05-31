@@ -278,7 +278,7 @@ main {
 
 .card-image {
     width: 100%;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 7 / 10;
     object-fit: cover;
     border-bottom: 1px solid var(--glass-border);
     background: rgba(0, 0, 0, 0.2);
