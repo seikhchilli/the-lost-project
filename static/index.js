@@ -24,7 +24,7 @@ const ApiClient = {
     },
 
     async searchTitles(query, page, pageSize) {
-        return this.request(`/api/titles/search?title_names=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`);
+        return this.request(`/api/titles/search?title_names=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}&watched=true&wished=true`);
     },
 
     async fetchDetails(name, year) {

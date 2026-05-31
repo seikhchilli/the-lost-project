@@ -2,13 +2,17 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"titles-mcp/config"
 )
 
+const (
+	// maxGameRetries is the number of different TMDB pages to try before giving up.
+	maxGameRetries = 5
+)
+
+// GetNextGameMovieOutput is the response for the movie game endpoint.
 type GetNextGameMovieOutput struct {
 	Status   string        `json:"status"`
 	Metadata *TMDBMetadata `json:"metadata,omitempty"`
@@ -19,6 +23,10 @@ type tmdbPopularResponse struct {
 	Results []tmdbSearchResult `json:"results"`
 }
 
+var lastGameGenre int
+
+// GetNextGameMovie picks a random popular movie from TMDB that the user has not
+// yet tracked. It retries across multiple attempts with randomized genres and decades.
 func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOutput, error) {
 	apiKey := config.AppConfig.TMDBConfig.APIKey
 	if apiKey == "" {
@@ -28,83 +36,22 @@ func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOu
 		}, nil
 	}
 
-	const maxRetries = 5
-	const maxPages = 500
-	triedPages := make(map[int]bool)
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Pick a random page we haven't tried yet
-		page := rand.Intn(maxPages) + 1
-		for triedPages[page] {
-			page = rand.Intn(maxPages) + 1
-		}
-		triedPages[page] = true
-
-		popularURL := fmt.Sprintf("%s/movie/popular?api_key=%s&page=%d", tmdbBaseURL, apiKey, page)
-
-		resp, err := http.Get(popularURL)
+	for range maxGameRetries {
+		movies, err := t.discoverGameMovies(apiKey)
 		if err != nil {
-			return GetNextGameMovieOutput{}, fmt.Errorf("failed to fetch popular movies: %w", err)
+			return GetNextGameMovieOutput{}, err
 		}
-
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			// If a high page number 404s, just try the next attempt
+		if len(movies) == 0 {
 			continue
 		}
 
-		var popResp tmdbPopularResponse
-		if err := json.NewDecoder(resp.Body).Decode(&popResp); err != nil {
-			resp.Body.Close()
-			return GetNextGameMovieOutput{}, fmt.Errorf("failed to decode TMDB response: %w", err)
-		}
-		resp.Body.Close()
-
-		if len(popResp.Results) == 0 {
-			continue
-		}
-
-		// Extract TMDB IDs as strings
-		var tmdbIds []string
-		for _, result := range popResp.Results {
-			tmdbIds = append(tmdbIds, fmt.Sprintf("%d", result.ID))
-		}
-
-		// Filter out movies already in our DB
-		existingIds, err := t.repository.GetExistingTmdbIds(ctx, tmdbIds)
+		movie, found, err := t.findUntrackedMovie(ctx, apiKey, movies)
 		if err != nil {
-			return GetNextGameMovieOutput{}, fmt.Errorf("failed to check existing titles: %w", err)
+			return GetNextGameMovieOutput{}, err
 		}
-
-		existingMap := make(map[string]bool)
-		for _, id := range existingIds {
-			existingMap[id] = true
+		if found {
+			return GetNextGameMovieOutput{Status: "success", Metadata: movie}, nil
 		}
-
-		// Shuffle results to make it more random even within the page
-		rand.Shuffle(len(popResp.Results), func(i, j int) {
-			popResp.Results[i], popResp.Results[j] = popResp.Results[j], popResp.Results[i]
-		})
-
-		for _, result := range popResp.Results {
-			idStr := fmt.Sprintf("%d", result.ID)
-			if !existingMap[idStr] {
-				// Found an untracked movie — fetch its full metadata
-				metadata, err := t.fetchTMDBDetails(apiKey, result.ID, "movie")
-				if err != nil {
-					return GetNextGameMovieOutput{}, err
-				}
-
-				metadata.NormalizeIMDbID()
-
-				return GetNextGameMovieOutput{
-					Status:   "success",
-					Metadata: metadata,
-				}, nil
-			}
-		}
-
-		// All movies on this page were tracked — loop to try another page
 	}
 
 	return GetNextGameMovieOutput{
@@ -112,3 +59,77 @@ func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOu
 		Message: "Could not find new movies after several attempts. You may have tracked most popular titles!",
 	}, nil
 }
+
+// discoverGameMovies fetches a page of movies using TMDB's discover endpoint,
+// applying randomized genre rotation, time hopping, and quality filters.
+func (t *titleService) discoverGameMovies(apiKey string) ([]tmdbSearchResult, error) {
+	// Popular genres: Action(28), Adventure(12), Animation(16), Comedy(35), Crime(80), Drama(18), Fantasy(14), Sci-Fi(878), Thriller(53)
+	genres := []int{28, 12, 16, 35, 80, 18, 14, 878, 53}
+	
+	// Genre Rotation: Pick a random genre that isn't the same as the last one
+	var genre int
+	for {
+		genre = genres[rand.Intn(len(genres))]
+		if genre != lastGameGenre {
+			break
+		}
+	}
+	lastGameGenre = genre
+
+	// Time Hopping: Pick a random decade from 1980s to 2020s
+	startYear := 1980 + (rand.Intn(5) * 10)
+	endYear := startYear + 9
+	dateGte := fmt.Sprintf("%d-01-01", startYear)
+	dateLte := fmt.Sprintf("%d-12-31", endYear)
+
+	// Due to strict filters, there won't be many pages. Pick page 1 or 2.
+	page := rand.Intn(2) + 1
+
+	url := fmt.Sprintf("%s/discover/movie?api_key=%s&page=%d&with_genres=%d&primary_release_date.gte=%s&primary_release_date.lte=%s&vote_count.gte=3000&vote_average.gte=7.0&sort_by=popularity.desc",
+		tmdbBaseURL, apiKey, page, genre, dateGte, dateLte)
+
+	var resp tmdbPopularResponse
+	if err := t.getAndDecodeJSON(url, &resp); err != nil {
+		return nil, nil
+	}
+	return resp.Results, nil
+}
+
+// findUntrackedMovie filters out movies already in the DB, shuffles the
+// remainder, and returns full metadata for the first untracked movie it finds.
+func (t *titleService) findUntrackedMovie(ctx context.Context, apiKey string, movies []tmdbSearchResult) (*TMDBMetadata, bool, error) {
+	ids := make([]string, len(movies))
+	for i, m := range movies {
+		ids[i] = fmt.Sprintf("%d", m.ID)
+	}
+
+	existingIds, err := t.repository.GetExistingTmdbIds(ctx, ids)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to check existing titles: %w", err)
+	}
+
+	existing := make(map[string]bool, len(existingIds))
+	for _, id := range existingIds {
+		existing[id] = true
+	}
+
+	rand.Shuffle(len(movies), func(i, j int) {
+		movies[i], movies[j] = movies[j], movies[i]
+	})
+
+	for _, m := range movies {
+		if existing[fmt.Sprintf("%d", m.ID)] {
+			continue
+		}
+
+		metadata, err := t.fetchTMDBDetails(apiKey, m.ID, "movie")
+		if err != nil {
+			return nil, false, err
+		}
+		metadata.NormalizeIMDbID()
+		return metadata, true, nil
+	}
+
+	return nil, false, nil
+}
+

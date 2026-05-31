@@ -111,12 +111,15 @@ func (r *repository) SearchTitles(ctx context.Context, searchParams SearchParams
 		}
 	}
 
-	if searchParams.Watched != nil {
-		query = query.Where("watched = ?", *searchParams.Watched)
-	}
-
-	if searchParams.Wished != nil {
-		query = query.Where("wished = ?", *searchParams.Wished)
+	if searchParams.Watched != nil && searchParams.Wished != nil && *searchParams.Watched && *searchParams.Wished {
+		query = query.Where("watched = ? OR wished = ?", true, true)
+	} else {
+		if searchParams.Watched != nil {
+			query = query.Where("watched = ?", *searchParams.Watched)
+		}
+		if searchParams.Wished != nil {
+			query = query.Where("wished = ?", *searchParams.Wished)
+		}
 	}
 
 	query = paginate(query, page, pageSize, &total)
