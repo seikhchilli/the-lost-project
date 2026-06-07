@@ -20,9 +20,14 @@ type TMDBConfig struct {
 	APIKey string
 }
 
+type LLMConfig struct {
+	GeminiAPIKey string
+}
+
 type Config struct {
 	DBConfig   DBConfig
 	TMDBConfig TMDBConfig
+	LLMConfig  LLMConfig
 }
 
 var AppConfig *Config
@@ -54,6 +59,9 @@ func LoadConfig() {
 		},
 		TMDBConfig: TMDBConfig{
 			APIKey: os.Getenv("TMDB_API_KEY"),
+		},
+		LLMConfig: LLMConfig{
+			GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
 		},
 	}
 }

@@ -58,7 +58,6 @@ func startHTTPServer() {
 	titleService := service.NewTitleService(database.NewRepository(db))
 	handlers := handler.NewHandler(titleService)
 	handlers.Register(mux)
-
 	srv := &http.Server{
 		Addr:              ":3369",
 		Handler:           mux,

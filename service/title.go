@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"titles-mcp/clients"
 	"titles-mcp/database"
 )
 
@@ -17,15 +18,17 @@ type TitleService interface {
 	RemoveTitleFromWished(ctx context.Context, input RemoveTitleFromWishedInput) (RemoveTitleFromWishedOutput, error)
 	GetTitleDetails(ctx context.Context, input GetTitleDetailsInput) (GetTitleDetailsOutput, error)
 	DeleteTitle(ctx context.Context, input DeleteTitleInput) (DeleteTitleOutput, error)
-	GetNextGameMovie(ctx context.Context) (GetNextGameMovieOutput, error)
+	GetNextGameMovie(ctx context.Context) (NextGameMovie, error)
 }
 
 type titleService struct {
 	repository database.Repository
+	llmClient  clients.LLM
 }
 
 func NewTitleService(repository database.Repository) TitleService {
 	return &titleService{
 		repository: repository,
+		llmClient:  clients.NewLLM(context.Background()),
 	}
 }

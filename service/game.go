@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"titles-mcp/config"
 )
@@ -10,10 +12,11 @@ import (
 const (
 	// maxGameRetries is the number of different TMDB pages to try before giving up.
 	maxGameRetries = 5
+	llmMode        = true
 )
 
-// GetNextGameMovieOutput is the response for the movie game endpoint.
-type GetNextGameMovieOutput struct {
+// NextGameMovie is the response for the movie game endpoint.
+type NextGameMovie struct {
 	Status   string        `json:"status"`
 	Metadata *TMDBMetadata `json:"metadata,omitempty"`
 	Message  string        `json:"message,omitempty"`
@@ -24,13 +27,18 @@ type tmdbPopularResponse struct {
 }
 
 var lastGameGenre int
+var genreIterator int
+var nextGameMovieCache = make(map[GetTitleDetailsInput]struct{})
 
-// GetNextGameMovie picks a random popular movie from TMDB that the user has not
+// NextGameMovie picks a random popular movie from TMDB that the user has not
 // yet tracked. It retries across multiple attempts with randomized genres and decades.
-func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOutput, error) {
+func (t *titleService) GetNextGameMovie(ctx context.Context) (NextGameMovie, error) {
+	if llmMode {
+		return t.getNextMovieUsingLLM()
+	}
 	apiKey := config.AppConfig.TMDBConfig.APIKey
 	if apiKey == "" {
-		return GetNextGameMovieOutput{
+		return NextGameMovie{
 			Status:  "error",
 			Message: "TMDB_API_KEY not found in environment.",
 		}, nil
@@ -39,7 +47,7 @@ func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOu
 	for range maxGameRetries {
 		movies, err := t.discoverGameMovies(apiKey)
 		if err != nil {
-			return GetNextGameMovieOutput{}, err
+			return NextGameMovie{}, err
 		}
 		if len(movies) == 0 {
 			continue
@@ -47,16 +55,92 @@ func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOu
 
 		movie, found, err := t.findUntrackedMovie(ctx, apiKey, movies)
 		if err != nil {
-			return GetNextGameMovieOutput{}, err
+			return NextGameMovie{}, err
 		}
 		if found {
-			return GetNextGameMovieOutput{Status: "success", Metadata: movie}, nil
+			return NextGameMovie{Status: "success", Metadata: movie}, nil
 		}
 	}
 
-	return GetNextGameMovieOutput{
+	return NextGameMovie{
 		Status:  "error",
 		Message: "Could not find new movies after several attempts. You may have tracked most popular titles!",
+	}, nil
+}
+
+func (t *titleService) getNextMovieUsingLLM() (NextGameMovie, error) {
+	ctx := context.Background()
+	genres := []string{"Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Sci-Fi", "Thriller"}
+	genre := genres[genreIterator]
+	genreIterator++
+	genreIterator %= len(genres)
+
+	// Time Hopping: Pick a random decade from 1980s to 2020s
+	// startYear := 1980 + (rand.Intn(5) * 10)
+	// endYear := startYear + 9
+	// dateGte := fmt.Sprintf("%d-01-01", startYear)
+	// dateLte := fmt.Sprintf("%d-12-31", endYear)
+	if len(nextGameMovieCache) <= 20 {
+		exclusionList := []string{}
+		pageSize := 100
+		for page := 0; page < 4; page++ {
+			titles, total, err := t.repository.GetAllTitles(ctx, page, pageSize)
+			if err != nil {
+				return NextGameMovie{Status: "Error", Metadata: nil, Message: "error"}, err
+			}
+			for _, title := range titles {
+				exclusionList = append(exclusionList, title.Name)
+			}
+			if total < int64(pageSize) {
+				break
+			}
+		}
+		prompt := fmt.Sprintf("Suggest 40 popular unique movie name and its release year of genre %s. Return in json format array [{\"movie_name\": \"nameOfTheMovie\", \"release_year\": \"ReleaseYear\"}]. Ensure release_year is a string. There should be no text before opening `[` and after closing `]`. Do not include these movies: %v", genre, exclusionList)
+		llmOutput, err := t.llmClient.GenerateContent(ctx, prompt, nil)
+		log.Print(llmOutput)
+		if err != nil {
+			return NextGameMovie{Status: "Error", Metadata: nil, Message: "error"}, err
+		}
+		var rawMovies []struct {
+			MovieName   string      `json:"movie_name"`
+			ReleaseYear interface{} `json:"release_year"`
+		}
+		err = json.Unmarshal([]byte(llmOutput), &rawMovies)
+		for _, rm := range rawMovies {
+			var yearStr string
+			if y, ok := rm.ReleaseYear.(string); ok {
+				yearStr = y
+			} else if y, ok := rm.ReleaseYear.(float64); ok {
+				yearStr = fmt.Sprintf("%.0f", y)
+			}
+			var yearPtr *string
+			if yearStr != "" {
+				yearPtr = &yearStr
+			}
+			nextGameMovieCache[GetTitleDetailsInput{MovieName: rm.MovieName, ReleaseYear: yearPtr}] = struct{}{}
+		}
+		if err != nil {
+			log.Printf("JSON unmarshalling failed for llm output: %v with error: %v", llmOutput, err)
+			return NextGameMovie{Status: "Error", Metadata: nil, Message: "error"}, err
+		}
+	}
+
+	for nextMovie, _ := range nextGameMovieCache {
+		bestMatch, err := t.searchTMDB(config.AppConfig.TMDBConfig.APIKey, nextMovie.MovieName, nextMovie.ReleaseYear)
+		if err != nil {
+			return NextGameMovie{Status: "Error", Metadata: nil, Message: "error"}, err
+		}
+		metadata, err := t.fetchTMDBDetails(config.AppConfig.TMDBConfig.APIKey, bestMatch.ID, bestMatch.MediaType)
+		if err != nil {
+			return NextGameMovie{Status: "Error", Metadata: nil, Message: "error"}, err
+		}
+		metadata.NormalizeIMDbID()
+		delete(nextGameMovieCache, nextMovie)
+		return NextGameMovie{Status: "Success", Metadata: metadata, Message: ""}, nil
+	}
+	return NextGameMovie{
+		Status:  "error",
+		Message: "Could not find new movies. Seems to be some issue with LLM!",
 	}, nil
 }
 
@@ -65,7 +149,7 @@ func (t *titleService) GetNextGameMovie(ctx context.Context) (GetNextGameMovieOu
 func (t *titleService) discoverGameMovies(apiKey string) ([]tmdbSearchResult, error) {
 	// Popular genres: Action(28), Adventure(12), Animation(16), Comedy(35), Crime(80), Drama(18), Fantasy(14), Sci-Fi(878), Thriller(53)
 	genres := []int{28, 12, 16, 35, 80, 18, 14, 878, 53}
-	
+
 	// Genre Rotation: Pick a random genre that isn't the same as the last one
 	var genre int
 	for {
@@ -132,4 +216,3 @@ func (t *titleService) findUntrackedMovie(ctx context.Context, apiKey string, mo
 
 	return nil, false, nil
 }
-
