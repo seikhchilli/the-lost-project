@@ -24,11 +24,13 @@ type TitleService interface {
 type titleService struct {
 	repository database.Repository
 	llmClient  clients.LLM
+	tmdbClient clients.TMDB
 }
 
-func NewTitleService(repository database.Repository) TitleService {
+func NewTitleService(repository database.Repository, tmdbClient clients.TMDB) TitleService {
 	return &titleService{
 		repository: repository,
 		llmClient:  clients.NewLLM(context.Background()),
+		tmdbClient: tmdbClient,
 	}
 }

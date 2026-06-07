@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"titles-mcp/clients"
 	"titles-mcp/config"
 	"titles-mcp/database"
 	"titles-mcp/handler"
@@ -43,7 +44,7 @@ func main() {
 func startMCPServer() {
 	server := mcp.NewServer(&mcp.Implementation{Name: "title-mcp", Version: "v1.0.0"}, nil)
 
-	titleService := service.NewTitleService(database.NewRepository(db))
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
 	titleTool := tools.NewTitleTool(titleService)
 	titleTool.Register(server)
 
@@ -55,7 +56,7 @@ func startMCPServer() {
 func startHTTPServer() {
 	mux := http.NewServeMux()
 
-	titleService := service.NewTitleService(database.NewRepository(db))
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
 	handlers := handler.NewHandler(titleService)
 	handlers.Register(mux)
 	srv := &http.Server{
