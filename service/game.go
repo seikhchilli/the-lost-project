@@ -117,6 +117,7 @@ func (t *titleService) generatePrompt() string {
 	}
 	builder.WriteString("].")
 	prompt += builder.String()
+	log.Println(prompt)
 	return prompt
 }
 

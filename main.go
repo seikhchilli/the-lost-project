@@ -45,7 +45,7 @@ func startMCPServer() {
 	slog.Info("Starting MCP server")
 	server := mcp.NewServer(&mcp.Implementation{Name: "title-mcp", Version: "v1.0.0"}, nil)
 
-	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB(), clients.NewYTS())
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
 	titleTool := tools.NewTitleTool(titleService)
 	titleTool.Register(server)
 
@@ -57,7 +57,7 @@ func startMCPServer() {
 func startHTTPServer() {
 	mux := http.NewServeMux()
 
-	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB(), clients.NewYTS())
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
 	handlers := handler.NewHandler(titleService)
 	handlers.Register(mux)
 	srv := &http.Server{

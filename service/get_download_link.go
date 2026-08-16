@@ -2,10 +2,18 @@ package service
 
 import (
 	"context"
-	"titles-mcp/clients"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
 )
 
 // --- Input / Output DTOs ---
+
+type TorrentLink struct {
+	Title string `json:"title"`
+	Href  string `json:"href"`
+}
 
 type GetDownloadLinkInput struct {
 	MovieName   string `json:"movie_name" jsonschema:"The name of the movie to search for on YTS"`
@@ -13,12 +21,19 @@ type GetDownloadLinkInput struct {
 }
 
 type GetDownloadLinkOutput struct {
-	Status          string               `json:"status"`
-	Message         string               `json:"message,omitempty"`
-	MovieTitle      string               `json:"movie_title,omitempty"`
-	PageURL         string               `json:"page_url,omitempty"`
-	BestQualityLink string               `json:"best_quality_link,omitempty"`
-	AllLinks        []clients.TorrentLink `json:"all_links,omitempty"`
+	Status          string        `json:"status"`
+	Message         string        `json:"message,omitempty"`
+	MovieTitle      string        `json:"movie_title,omitempty"`
+	PageURL         string        `json:"page_url,omitempty"`
+	BestQualityLink string        `json:"best_quality_link,omitempty"`
+	AllLinks        []TorrentLink `json:"all_links,omitempty"`
+}
+
+type YTSResult struct {
+	Title           string        `json:"title"`
+	URL             string        `json:"url"`
+	BestQualityLink string        `json:"best_quality_link"`
+	AllLinks        []TorrentLink `json:"all_links"`
 }
 
 // --- Service handler ---
@@ -31,11 +46,33 @@ func (t *titleService) GetDownloadLink(ctx context.Context, input GetDownloadLin
 		}, nil
 	}
 
-	result, err := t.ytsClient.GetDownloadLink(input.MovieName, input.ReleaseYear)
+	searchQuery := input.MovieName
+	if input.ReleaseYear != "" {
+		searchQuery = fmt.Sprintf("%s %s", input.MovieName, input.ReleaseYear)
+	}
+
+	cmd := exec.CommandContext(ctx, "python", "yts_scraper.py", searchQuery, "--match", input.MovieName)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return GetDownloadLinkOutput{
 			Status:  "error",
-			Message: err.Error(),
+			Message: fmt.Sprintf("failed to run python script: %v, output: %s", err, string(out)),
+		}, nil
+	}
+
+	data, err := os.ReadFile("movie_links.json")
+	if err != nil {
+		return GetDownloadLinkOutput{
+			Status:  "error",
+			Message: fmt.Sprintf("failed to read movie_links.json: %v", err),
+		}, nil
+	}
+
+	var result YTSResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return GetDownloadLinkOutput{
+			Status:  "error",
+			Message: fmt.Sprintf("failed to parse json: %v", err),
 		}, nil
 	}
 
@@ -48,9 +85,9 @@ func (t *titleService) GetDownloadLink(ctx context.Context, input GetDownloadLin
 
 	return GetDownloadLinkOutput{
 		Status:          "success",
-		Message:         "Download links found for " + result.MovieTitle,
-		MovieTitle:      result.MovieTitle,
-		PageURL:         result.PageURL,
+		Message:         "Download links found for " + result.Title,
+		MovieTitle:      result.Title,
+		PageURL:         result.URL,
 		BestQualityLink: result.BestQualityLink,
 		AllLinks:        result.AllLinks,
 	}, nil

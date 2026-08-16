@@ -2,12 +2,11 @@ package database
 
 import (
 	"context"
-	"strings"
-	"errors"
 	"titles-mcp/database/models"
 	"titles-mcp/database/sentinel"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Repository interface {
@@ -63,12 +62,10 @@ func (r *repository) GetExistingTmdbIds(ctx context.Context, tmdbIds []string) (
 }
 
 func (r *repository) AddTitles(ctx context.Context, titles []models.Title) ([]models.TitleSummary, error) {
-	if err := r.db.WithContext(ctx).Create(&titles).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) || 
-		   strings.Contains(strings.ToLower(err.Error()), "unique constraint") || 
-		   strings.Contains(strings.ToLower(err.Error()), "duplicate key") {
-			return nil, sentinel.ErrTitleAlreadyExists
-		}
+	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tmdb_id"}},
+		UpdateAll: true,
+	}).Create(&titles).Error; err != nil {
 		return nil, err
 	}
 	titlesAdded := make([]models.TitleSummary, len(titles))
