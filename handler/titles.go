@@ -241,3 +241,25 @@ func (h *handler) DeleteTitle(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, output)
 }
+
+func (h *handler) GetDownloadLink(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	movieName := q.Get("movie_name")
+	if movieName == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "movie_name is required"})
+		return
+	}
+
+	input := service.GetDownloadLinkInput{
+		MovieName:   movieName,
+		ReleaseYear: q.Get("release_year"),
+	}
+
+	output, err := h.titleService.GetDownloadLink(r.Context(), input)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, output)
+}
+

@@ -19,18 +19,21 @@ type TitleService interface {
 	GetTitleDetails(ctx context.Context, input GetTitleDetailsInput) (GetTitleDetailsOutput, error)
 	DeleteTitle(ctx context.Context, input DeleteTitleInput) (DeleteTitleOutput, error)
 	GetNextGameMovie(ctx context.Context) (NextGameMovie, error)
+	GetDownloadLink(ctx context.Context, input GetDownloadLinkInput) (GetDownloadLinkOutput, error)
 }
 
 type titleService struct {
 	repository database.Repository
 	llmClient  clients.LLM
 	tmdbClient clients.TMDB
+	ytsClient  clients.YTS
 }
 
-func NewTitleService(repository database.Repository, tmdbClient clients.TMDB) TitleService {
+func NewTitleService(repository database.Repository, tmdbClient clients.TMDB, ytsClient clients.YTS) TitleService {
 	return &titleService{
 		repository: repository,
 		llmClient:  clients.NewLLM(context.Background()),
 		tmdbClient: tmdbClient,
+		ytsClient:  ytsClient,
 	}
 }

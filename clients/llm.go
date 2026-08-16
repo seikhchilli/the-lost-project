@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"log"
+	"os"
 	"titles-mcp/config"
 
 	"google.golang.org/api/iterator"
@@ -50,6 +51,13 @@ func (g *gemini) ListAllModels(ctx context.Context) {
 
 func (g *gemini) GenerateContent(ctx context.Context, prompt string, promptConfig *genai.GenerateContentConfig) (string, error) {
 	log.Print("Generating content using llm")
+	file, err := os.OpenFile("llm-logs/prompt.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("Failed to open prompt log file with err: %v", err)
+	} else {
+		file.Write([]byte(prompt))
+		file.Close()
+	}
 	result, err := g.client.Models.GenerateContent(
 		ctx, "gemini-flash-lite-latest", genai.Text(prompt), promptConfig,
 	)

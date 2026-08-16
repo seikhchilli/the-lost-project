@@ -42,9 +42,10 @@ func main() {
 }
 
 func startMCPServer() {
+	slog.Info("Starting MCP server")
 	server := mcp.NewServer(&mcp.Implementation{Name: "title-mcp", Version: "v1.0.0"}, nil)
 
-	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB(), clients.NewYTS())
 	titleTool := tools.NewTitleTool(titleService)
 	titleTool.Register(server)
 
@@ -56,14 +57,14 @@ func startMCPServer() {
 func startHTTPServer() {
 	mux := http.NewServeMux()
 
-	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB())
+	titleService := service.NewTitleService(database.NewRepository(db), clients.NewTMDB(), clients.NewYTS())
 	handlers := handler.NewHandler(titleService)
 	handlers.Register(mux)
 	srv := &http.Server{
 		Addr:              ":3369",
 		Handler:           mux,
 		ReadTimeout:       5 * time.Second,   // Max time to read the entire request
-		WriteTimeout:      10 * time.Second,  // Max time to write the response
+		WriteTimeout:      60 * time.Second,  // Increased for YTS scraping which involves headless browser
 		IdleTimeout:       120 * time.Second, // Max time for connections using TCP Keep-Alive
 		ReadHeaderTimeout: 5 * time.Second,   // Max time to read headers (Mitigates Slowloris attacks)
 	}

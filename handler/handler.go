@@ -28,6 +28,7 @@ func (h *handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/titles/search", h.SearchTitles)
 	mux.HandleFunc("GET /api/titles/details", h.GetTitleDetails)
 	mux.HandleFunc("GET /api/titles/game/next", h.GetNextGameMovie)
+	mux.HandleFunc("GET /api/titles/download-link", h.GetDownloadLink)
 	mux.HandleFunc("POST /api/titles/bulk", h.GetTitlesByIds)
 
 	mux.HandleFunc("PUT /api/titles/{id}/watch", h.MarkTitleAsWatched)
