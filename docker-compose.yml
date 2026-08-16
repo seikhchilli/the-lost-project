@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  titles-mcp:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: titles-mcp
+    restart: unless-stopped
+    ports:
+      - "3369:3369"
+    env_file:
+      - .env
